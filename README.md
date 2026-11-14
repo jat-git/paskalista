@@ -13,7 +13,7 @@ Unzip a release into `World of Warcraft/_forever_/Interface/AddOns/`, or clone t
 
 ```sh
 cd "World of Warcraft/_forever_/Interface/AddOns"
-git clone <repo-url> Paskalista
+git clone https://github.com/jat-git/paskalista.git Paskalista
 ```
 
 Update with `git pull`, then `/reload` in game.
