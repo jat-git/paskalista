@@ -1,0 +1,3 @@
+# Not included in release zips
+.github        export-ignore
+.gitattributes export-ignore
