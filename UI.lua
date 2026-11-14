@@ -243,12 +243,9 @@ local function Build()
     tabGroup:SetPoint("LEFT", tabMine, "RIGHT", 4, 0)
     tabGroup:SetScript("OnClick", function() currentTab = "group"; ns.RefreshUI() end)
 
-    local syncBtn = MakeButton(frame, "Sync", 70)
-    syncBtn:SetPoint("TOPRIGHT", -12, -30)
-    syncBtn:SetScript("OnClick", function() ns.RequestSync() end)
 
     importBtn = MakeButton(frame, "Copy lists...", 110)
-    importBtn:SetPoint("RIGHT", syncBtn, "LEFT", -4, 0)
+    importBtn:SetPoint("TOPRIGHT", -12, -30)
     importBtn:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(owner, root)
             root:CreateTitle("Copy into my list")

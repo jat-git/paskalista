@@ -18,6 +18,7 @@ local MAX_NAME   = 60
 ns.PREFIX = PREFIX
 ns.MAX_REASON = MAX_REASON
 ns.remote = {}            -- [senderFullName] = { [key] = entry }
+ns.remoteGuid = {}        -- [senderFullName] = sender's character GUID (once resolved)
 
 local db                  -- PaskalistaCharDB
 local myFullName
@@ -234,6 +235,7 @@ end
 
 -- Forward declarations for comms
 local SendMsg, QueueFullSync
+local NoteSender
 
 -- Add or update an entry in your own list.
 -- info: { guid?, name, class?, race?, level? }
@@ -549,21 +551,13 @@ QueueFullSync = function()
 end
 ns.QueueFullSync = QueueFullSync
 
-function ns.RequestSync()
-    if not GroupChannel() then
-        Print("You are not in a group.")
-        return
-    end
-    SendMsg("H" .. PROTO)
-    QueueFullSync()
-end
-
 local function OnAddonMessage(prefix, text, channel, sender)
     if Readable(prefix) ~= PREFIX then return end
     text, sender = Readable(text), Readable(sender)
     if not text or not sender or text == "" then return end
     sender = FullName(sender)
     if sender == myFullName then return end
+    NoteSender(sender)
 
     local t, body = text:sub(1, 1), text:sub(2)
     if t == "H" then
@@ -601,6 +595,70 @@ local function GroupUnits()
         for i = 1, GetNumSubgroupMembers() do units[#units + 1] = "party" .. i end
     end
     return units
+end
+
+-- Group membership is tracked by character GUID. Party members' GUIDs are
+-- known at any distance, while their names can come back as "Unknown" (or
+-- without realm) when they are far away or in another zone. Shared lists are
+-- only dropped when a member has positively left the group.
+
+-- Find the GUID of the group member who sent us addon messages.
+local function ResolveSenderGUID(sender)
+    local lower = sender:lower()
+    local short = lower:match("^([^%-]+)")
+    local byShort, shortCount
+    shortCount = 0
+    for _, u in ipairs(GroupUnits()) do
+        local guid = Readable(UnitGUID(u))
+        local n = UnitFull(u)
+        if guid and n then
+            if n:lower() == lower then return guid end
+            if n:lower():match("^([^%-]+)") == short then
+                byShort = guid
+                shortCount = shortCount + 1
+            end
+        end
+    end
+    -- realm may be missing for far-away members: accept a unique name match
+    if shortCount == 1 then return byShort end
+end
+
+NoteSender = function(sender)
+    if not ns.remoteGuid[sender] then
+        ns.remoteGuid[sender] = ResolveSenderGUID(sender)
+    end
+end
+
+local function ForgetSender(sender)
+    ns.remote[sender] = nil
+    ns.remoteGuid[sender] = nil
+end
+
+-- Remove lists only from members who have definitely left.
+local function PruneDepartedSenders()
+    local guids, names = {}, {}
+    local guidsComplete, namesComplete = true, true
+    for _, u in ipairs(GroupUnits()) do
+        local g = Readable(UnitGUID(u))
+        if g then guids[g] = true else guidsComplete = false end
+        local n = UnitFull(u)
+        if n then names[n:lower()] = true else namesComplete = false end
+    end
+
+    local removed = false
+    for sender in pairs(ns.remote) do
+        NoteSender(sender)
+        local g = ns.remoteGuid[sender]
+        local gone
+        if g then
+            gone = guidsComplete and not guids[g]
+        else
+            -- never resolved: only trust names when every member's name is known
+            gone = namesComplete and not names[sender:lower()]
+        end
+        if gone then ForgetSender(sender); removed = true end
+    end
+    if removed then MarkDirty() end
 end
 
 ---------------------------------------------------------------------------
@@ -755,6 +813,7 @@ local function OnRosterUpdate()
         wipe(db.announced)   -- also clears stale state from logging out in a group
         if wasInGroup then
             wipe(ns.remote)
+            wipe(ns.remoteGuid)
             wipe(alerted)
             wipe(queue)
             wipe(chatQueue)
@@ -764,17 +823,8 @@ local function OnRosterUpdate()
         return
     end
 
-    -- forget lists from people who left
-    local present = {}
-    for _, u in ipairs(GroupUnits()) do
-        local n = UnitFull(u)
-        if n then present[n] = true end
-    end
-    local removed = false
-    for sender in pairs(ns.remote) do
-        if not present[sender] then ns.remote[sender] = nil; removed = true end
-    end
-    if removed then MarkDirty() end
+    -- forget lists from people who have left (never based on distance)
+    PruneDepartedSenders()
 
     if not wasInGroup then
         -- we just joined (or reloaded in a group): ask for lists and share ours
@@ -920,7 +970,6 @@ local function Help()
     DEFAULT_CHAT_FRAME:AddMessage("  /paska remove <Name[-Realm]> - remove from your list")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska list - print your list")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska group - print the combined group list")
-    DEFAULT_CHAT_FRAME:AddMessage("  /paska sync - re-share lists with your group")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska announce [Name] - say in group chat that a player (or everyone listed in the group) is on your list")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska nearby - toggle alerts when a listed enemy player is nearby (now: "
         .. (db.nearby ~= false and "on" or "off") .. ")")
@@ -965,8 +1014,6 @@ SlashCmdList.PASKALISTA = function(msg)
     elseif cmd == "auto" then
         db.autoAnnounce = (db.autoAnnounce == false)
         Print("Automatic group announcement " .. (db.autoAnnounce and "ON" or "OFF") .. ".")
-    elseif cmd == "sync" then
-        ns.RequestSync()
     elseif cmd == "import" then
         if rest == "" then Help()
         elseif rest:lower() == "all" then ns.ImportFrom(nil)

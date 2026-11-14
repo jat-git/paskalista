@@ -31,7 +31,6 @@ Update with `git pull`, then `/reload` in game.
 | `/paska list` / `group` | print your list / the combined list |
 | `/paska announce [Name]` | announce listed players in group chat |
 | `/paska import Name` / `all` | copy a member's list / everyone's lists |
-| `/paska sync` | re-share lists with the group |
 | `/paska nearby` | toggle alerts for listed enemy players nearby |
 | `/paska auto` | toggle automatic announcements |
 
