@@ -136,7 +136,6 @@ end
 local function MarkDirty()
     combinedCache = nil
     if ns.RefreshUI then ns.RefreshUI() end
-    if ns.RefreshMarkers then ns.RefreshMarkers() end
 end
 
 ---------------------------------------------------------------------------
@@ -872,8 +871,6 @@ local function Help()
     DEFAULT_CHAT_FRAME:AddMessage("  /paska group - print the combined group list")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska sync - re-share lists with your group")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska announce [Name] - say in group chat that a player (or everyone listed in the group) is on your list")
-    DEFAULT_CHAT_FRAME:AddMessage("  /paska markers - toggle skull markers on nameplates, unit frames and chat (now: "
-        .. (db.markers ~= false and "on" or "off") .. ")")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska auto - toggle automatic group announcement (now: "
         .. (db.autoAnnounce ~= false and "on" or "off") .. ")")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska import <Name> - copy a group member's list into yours")
@@ -909,10 +906,6 @@ SlashCmdList.PASKALISTA = function(msg)
     elseif cmd == "announce" then
         if rest == "" then ns.AnnounceGroup()
         else ns.AnnounceByName(FullName(rest:sub(1, 1):upper() .. rest:sub(2))) end
-    elseif cmd == "markers" then
-        db.markers = (db.markers == false)
-        Print("Markers " .. (db.markers and "ON" or "OFF") .. ".")
-        if ns.RefreshMarkers then ns.RefreshMarkers() end
     elseif cmd == "auto" then
         db.autoAnnounce = (db.autoAnnounce == false)
         Print("Automatic group announcement " .. (db.autoAnnounce and "ON" or "OFF") .. ".")

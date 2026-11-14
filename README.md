@@ -5,7 +5,7 @@ A grudge list addon for World of Warcraft: Forever.
 - Keep your own list of players, each with a comment like "stole my loot".
 - In a group, everyone's lists are combined and shared.
 - Copy players from other members' lists into your own.
-- Listed players get a skull marker, a tooltip note, and a warning when they join your group.
+- Listed players get a tooltip note and a warning when they join your group.
 
 ## Install
 
@@ -31,7 +31,6 @@ Update with `git pull`, then `/reload` in game.
 | `/paska announce [Name]` | announce listed players in group chat |
 | `/paska import Name` / `all` | copy a member's list / everyone's lists |
 | `/paska sync` | re-share lists with the group |
-| `/paska markers` | toggle skull markers |
 | `/paska auto` | toggle automatic announcements |
 
 ## License

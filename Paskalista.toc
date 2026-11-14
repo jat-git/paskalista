@@ -2,11 +2,10 @@
 ## Title: Paskalista
 ## Notes: Personal grudge list of players, shared and combined with your party/raid.
 ## Author: jat
-## Version: 1.0.1
+## Version: 1.0.2
 ## SavedVariablesPerCharacter: PaskalistaCharDB
 ## IconTexture: Interface\Icons\Ability_Warrior_Rampage
 ## AddonCompartmentFunc: Paskalista_OnAddonCompartmentClick
 
 Core.lua
 UI.lua
-Markers.lua
