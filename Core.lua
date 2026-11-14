@@ -664,6 +664,57 @@ function ns.AnnounceGroup()
     if n == 0 then Print("Nobody in your group is on your list.") end
 end
 
+---------------------------------------------------------------------------
+-- Nearby enemies: when a listed enemy player shows up (nameplate, target or
+-- mouseover), warn locally and announce your own grudges to the group.
+---------------------------------------------------------------------------
+
+local NEARBY_COOLDOWN = 300   -- seconds before the same player is reported again
+local lastNearby = {}
+
+function ns.CheckNearby(unit)
+    if not db or db.nearby == false then return end
+    unit = Readable(unit)
+    if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then return end
+    local enemy = Readable(UnitIsEnemy("player", unit)) or Readable(UnitCanAttack("player", unit))
+    if not enemy then return end
+
+    local guid, name = Readable(UnitGUID(unit)), UnitFull(unit)
+    if not guid and not name then return end
+    local m = ns.FindListing(guid, name)
+    if not m then return end
+
+    local k = guid or name:lower()
+    local now = GetTime()
+    if lastNearby[k] and now - lastNearby[k] < NEARBY_COOLDOWN then return end
+    lastNearby[k] = now
+
+    name = name or m.name
+    local own
+    for _, s in ipairs(m.sources) do
+        if s.own then own = s; break end
+    end
+    local who = {}
+    for _, s in ipairs(m.sources) do
+        who[#who + 1] = (s.own and "you" or ShortName(s.by))
+            .. ((s.reason and s.reason ~= "") and (" (" .. s.reason .. ")") or "")
+    end
+    Print("|cffff4040Nearby:|r " .. ns.PlayerLink(name, m.class)
+        .. " is close. Listed by " .. table.concat(who, ", ") .. ".")
+    PlaySound(SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959, "Master")
+
+    -- only announce our own grudges, so group members don't double up
+    if own and GroupChannel() then
+        local text = ShortName(name) .. " is nearby and on my paskalista"
+        if own.reason and own.reason ~= "" then
+            text = text .. ", reason: " .. own.reason
+        else
+            text = text .. "."
+        end
+        SayInGroup(text)
+    end
+end
+
 local checkPending = false
 function ns.ScheduleGroupCheck()
     if checkPending then return end
@@ -871,6 +922,8 @@ local function Help()
     DEFAULT_CHAT_FRAME:AddMessage("  /paska group - print the combined group list")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska sync - re-share lists with your group")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska announce [Name] - say in group chat that a player (or everyone listed in the group) is on your list")
+    DEFAULT_CHAT_FRAME:AddMessage("  /paska nearby - toggle alerts when a listed enemy player is nearby (now: "
+        .. (db.nearby ~= false and "on" or "off") .. ")")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska auto - toggle automatic group announcement (now: "
         .. (db.autoAnnounce ~= false and "on" or "off") .. ")")
     DEFAULT_CHAT_FRAME:AddMessage("  /paska import <Name> - copy a group member's list into yours")
@@ -906,6 +959,9 @@ SlashCmdList.PASKALISTA = function(msg)
     elseif cmd == "announce" then
         if rest == "" then ns.AnnounceGroup()
         else ns.AnnounceByName(FullName(rest:sub(1, 1):upper() .. rest:sub(2))) end
+    elseif cmd == "nearby" then
+        db.nearby = (db.nearby == false)
+        Print("Nearby enemy alerts " .. (db.nearby and "ON" or "OFF") .. ".")
     elseif cmd == "auto" then
         db.autoAnnounce = (db.autoAnnounce == false)
         Print("Automatic group announcement " .. (db.autoAnnounce and "ON" or "OFF") .. ".")
@@ -950,6 +1006,7 @@ ev:SetScript("OnEvent", function(self, event, a1, a2, a3, a4)
         self:RegisterEvent("CHAT_MSG_ADDON")
         self:RegisterEvent("PLAYER_TARGET_CHANGED")
         self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+        self:RegisterEvent("NAME_PLATE_UNIT_ADDED")
     elseif event == "PLAYER_ENTERING_WORLD" then
         myFullName = UnitFull("player") or myFullName
         OnRosterUpdate()
@@ -959,7 +1016,12 @@ ev:SetScript("OnEvent", function(self, event, a1, a2, a3, a4)
         OnAddonMessage(a1, a2, a3, a4)
     elseif event == "PLAYER_TARGET_CHANGED" then
         ns.TouchUnit("target")
+        ns.CheckNearby("target")
     elseif event == "UPDATE_MOUSEOVER_UNIT" then
         ns.TouchUnit("mouseover")
+        ns.CheckNearby("mouseover")
+    elseif event == "NAME_PLATE_UNIT_ADDED" then
+        ns.TouchUnit(a1)
+        ns.CheckNearby(a1)
     end
 end)

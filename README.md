@@ -6,6 +6,7 @@ A grudge list addon for World of Warcraft: Forever.
 - In a group, everyone's lists are combined and shared.
 - Copy players from other members' lists into your own.
 - Listed players get a tooltip note and a warning when they join your group.
+- Listed enemy players nearby are announced to your party.
 
 ## Install
 
@@ -31,6 +32,7 @@ Update with `git pull`, then `/reload` in game.
 | `/paska announce [Name]` | announce listed players in group chat |
 | `/paska import Name` / `all` | copy a member's list / everyone's lists |
 | `/paska sync` | re-share lists with the group |
+| `/paska nearby` | toggle alerts for listed enemy players nearby |
 | `/paska auto` | toggle automatic announcements |
 
 ## License
